@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en" data-bs-theme="auto">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="">
+  <meta name="author" content="Mark Otto, Jacob Thornton, and Bootstrap contributors">
+  <meta name="generator" content="Hugo 0.118.2">
+  <title>Interactive Map of Bangladesh</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@docsearch/css@3">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-T3c6CoIi6uLrA9TneNEoa7RxnatzjcDSCmG1MXxSR1GAsXEV/Dwwykc2MPK8M2HN" crossorigin="anonymous">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+  <style>
+    #map-container {
+      height: 800px;
+      width: 100%; /* Adjust the width as needed */
+      float: left;
+    }
+  </style>
+</head>
+<body>
+<main>
+  <div class="container py-4">
+    <header class="pb-3 mb-4 border-bottom">
+      <p class="fs-4 fw-bold">Example of Interactive map of Bangladesh</p>
+    </header>
+    <div class="row">
+      <div class="col-7 rounded border p-2">
+        <div id="map-container"></div>
+      </div>
+      <div class="col-5">
+        <div id="marker-note" class="row">
+          <p class="fs-3">Click map markers to show details...!</p>
+        </div>
+        <div class="row ps-2 pe-2 position-relative h-100">
+          <div id="bg_wait" class="position-absolute top-50 start-50 translate-middle text-center" style="display: none;">
+            <div class="spinner-grow text-danger" role="status">
+              <span class="visually-hidden">Loading...</span>
+            </div>
+          </div>
+          <div id="district-details" class="card p-0" style="display: none;">
+            <div class="card-header bg-transparent">Details</div>
+            <div class="card-body">
+              <h5 class="card-title fw-bold" id="district-name"></h5>
+              <p class="card-text" id="district-description"></p>
+            </div>
+            <div class="card-footer bg-transparent pb-0 pt-0">
+              <div class="row">
+                <div class="col-6 border-bottom pb-1 pt-1 border-end">Latitude</div>
+                <div class="col-6 border-bottom pb-1 pt-1">Longitude</div>
+                <div id="district-lat" class="col-6 border-end pb-1 pt-1 border-bottom"></div>
+                <div id="district-long" class="col-6 pb-1 pt-1 border-bottom"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <footer class="pt-3 mt-4 text-body-secondary border-top fw-bold">
+      &copy; 2024 <a href="https://www.freelancer.com/u/Fahomid">Fahomid Hassan</a>
+    </footer>
+  </div>
+</main>
+<script>
+
+  // Bangladesh bounds
+  var maxBounds = [
+    [20.0, 88.0], // Southwest coordinates
+    [27.5, 92.5]  // Northeast coordinates
+  ];
+
+  var map = L.map('map-container', {
+    center: [23.6850, 90.3563],
+    zoom: 7, // Adjust the zoom level as needed
+    maxBounds: maxBounds, // Set the maximum bounds
+    maxBoundsViscosity: 1.0 // Elastic bounce-back effect
+  });
+
+  // Set the minimum and maximum zoom level
+  map.setMinZoom(6);
+  map.setMaxZoom(8);
+
+  // Add a tile layer (you can choose a different one)
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+
+  // reading json file from GitHub which contains all the Bangladeshi boundaries. Try not to change it unless you have more accurate GeoJSON of Bangladesh
+  fetch('https://gist.githubusercontent.com/fahomid/ef39d81cd2f37cc49cedd95e1d946280/raw/769eef31b7a2a254338127de2ab0f9e429ced1b1/geoBoundaries-BGD-ADM0_simplified.geojson')
+          .then(response => response.json())
+          .then(data => {
+            // Add GeoJSON layer to the map
+            L.geoJSON(data).addTo(map);
+          })
+          .catch(error => console.error('Error loading GeoJSON:', error));
+
+  // reading json file from GitHub which contains all the Bangladeshi district coordination and other details. add or remove data as per need
+  fetch('https://gist.githubusercontent.com/fahomid/426f53d6706c270b85c49160c4dc74ac/raw/ffe158347c3e2decf0d9c177d7e299c66bdd403d/Bangladesh-district.json')
+          .then(response => response.json())
+          .then(data => {
+
+            // adding GeoJSON layer to the map
+            L.geoJSON(data, {
+              onEachFeature: function (feature, layer) {
+
+                // Add a click event to each feature
+                layer.on('click', function () {
+
+                  // hide marker note
+                  document.getElementById("marker-note").style.display = "none";
+
+                  // update view
+                  updateView(feature.properties);
+                });
+              }
+            }).addTo(map);
+          })
+          .catch(error => console.error('Error loading GeoJSON:', error));
+
+  // function to update views
+  function updateView(data) {
+
+    // show wait ui and hide old details container
+    document.getElementById("bg_wait").style.display = "block";
+    document.getElementById("district-details").style.display = "none";
+
+    // update district name
+    document.getElementById("district-name").innerText = data.name + " (" + data.bn_name + ")";
+
+    // update district description
+    document.getElementById("district-description").innerText = data.description ? data.description : 'No description set in the JSON file! Please update it to reflect the change here!';
+
+    // update district latitude
+    document.getElementById("district-lat").innerText = data.lat;
+
+    // update district longitude
+    document.getElementById("district-long").innerText = data.long;
+
+    // show details after 1 seconds
+    setTimeout(function () {
+
+      // show details container and hide wait ui
+      document.getElementById("district-details").style.display = "block";
+      document.getElementById("bg_wait").style.display = "none";
+    }, 2000);
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js" integrity="sha384-C6RzsynM9kWDrMNeT87bh95OGNyZPhcTNXj1NW7RuBCsyN/o0jlpcV8Qyq46cDfL" crossorigin="anonymous"></script>
+</body>
+</html>
